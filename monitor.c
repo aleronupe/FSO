@@ -23,7 +23,8 @@ int main(int argc, char *argv[]){
 
   // Cria os estudantes
   srand(time(NULL));
-  students = (rand() % 38) + 3;
+  students = (rand() % 38) + 3; //- COMENTADO PARA TESTAGEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEM
+  //students = 6;
   int chairs = students/2;
   int cont;
 
@@ -44,10 +45,13 @@ int main(int argc, char *argv[]){
   pthread_mutex_init(&locker, NULL);
   sem_init(&semStudent, 0, chairs);
 
+  //Cria o vetor de id de Threads
+  int vec_students[students];
 
   //Inicializa threads
   for(cont = 0; cont < chairs; cont++){
-    pthread_create(id_list+cont, NULL, student, &cont);
+    vec_students[cont] = cont+1;
+    pthread_create(id_list+cont, NULL, student, &vec_students[cont]);
   }
   pthread_create(&assistant_id, NULL, assistant, NULL);
 
@@ -90,7 +94,8 @@ int main(int argc, char *argv[]){
 //////////////////////////////////Student Thread////////////////////
 void *student(void *id_aux){
   //Inicializa ID e ajudas
-  int id = *((int *)id_aux) + 1;
+  int id = *((int *)id_aux);
+  printf("[-- Inicio da thread de id %d --]\n", id);
   int helps = 0, empty_chairs = 0, cont = 0;
 
 
@@ -112,6 +117,7 @@ void *student(void *id_aux){
         }
       }
       pthread_mutex_unlock(&locker);
+
       while( (line[position] != id) && (busy != 1) ){
         //Busy wait
       }
@@ -134,7 +140,7 @@ void *student(void *id_aux){
 
 int randomTime(){
   srand(time(NULL));
-  int waiter = (rand() % 10) + 1;
+  int waiter = (rand() % 3) + 1;
   return waiter;
 }
 
@@ -167,7 +173,7 @@ void *assistant(void *param){
     pthread_mutex_lock(&locker);
     position++;
     sem_post(&semStudent);
-    pthread_mutex_lock(&locker);
+    pthread_mutex_unlock(&locker);
 
   }
 
