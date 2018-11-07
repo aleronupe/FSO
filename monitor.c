@@ -3,24 +3,27 @@
 #include <pthread.h>
 #include <time.h>
 #include <semaphore.h>
+#include <unistd.h>
 
 //Declarações de Funções
-void *students(void *param);
-void *assistent(void *param);
+void *student(void *param);
+void *assistant(void *param);
 int randomTime();
 
 int busy; //Estado do monitor
-int *fila; //Vetor com os ID's das threads
-int position //Indica a posição do primeiro aluno da fila de espera
+int *line; //Vetor com os ID's das threads
+int position; //Indica a posição do primeiro aluno da fila de espera
+int students; //Quantidade de alunos no programa
 
-pthread_mutex_t locker;
-sem_t semAluno; // um semaforo pode ser vetor? tipo semAtendimento[5]
+pthread_mutex_t locker; //mutex para barrar acesso a fila
+pthread_mutex_t office; //mutex para controlar acesso ao escritório
+sem_t semStudent; // um semaforo pode ser vetor? tipo semAtendimento[5]
 
 int main(int argc, char *argv[]){
 
   // Cria os estudantes
   srand(time(NULL));
-  int students = (rand() % 38) + 3;
+  students = (rand() % 38) + 3;
   int chairs = students/2;
   int cont;
 
@@ -30,69 +33,144 @@ int main(int argc, char *argv[]){
   printf("------------------------\n");
 
   //Lista de IDs
-  pthread_t monitor_id;
+  pthread_t assistant_id;
   pthread_t *id_list;
   id_list = (pthread_t *) malloc(chairs*sizeof(pthread_t));
 
   //Alocar dinâmicamente o vetor
-  fila = (int *) calloc(students*3, sizeof(int));
+  line = (int *) calloc(students*3, sizeof(int));
 
-  //Inicializa Mutex
+  //Inicializa Mutex e Semáforo
   pthread_mutex_init(&locker, NULL);
+  sem_init(&semStudent, 0, chairs);
+
 
   //Inicializa threads
   for(cont = 0; cont < chairs; cont++){
-    pthread_create(id_list+cont, NULL, aluno, cont+1);
+    pthread_create(id_list+cont, NULL, student, &cont);
   }
-  pthread_create(&monitor_id, NULL, monitor, NULL)
+  pthread_create(&assistant_id, NULL, assistant, NULL);
 
 
   //Finaliza Threads
   for(cont = 0; cont < chairs; cont++){
     pthread_join(*(id_list+cont), NULL);
   }
-  pthread_join(monitor_id, NULL)
-
-  sem_init(&semAluno, 0, 5);
+  pthread_join(assistant_id, NULL);
 
 
+  return 0;
 
 }
 
-void *assistant(void *param){
+// void *assistant(void *param){
+//
+//   while (1) {
+//     // duvida se aqui ele tem que estar dormindo para dar um sem_wait
+//     // for(position = 1; position < (chairs*3)-1; position++) {
+//     printf("Estou atendendo o aluno %d\n", line[position] );
+//
+//     pthread_mutex_lock(&locker)
+//     position++;
+//
+//     pthread_mutex_lock(&locker)
+//
+//     sem_post(&semStudent);
+//
+//     sleep(randomTime);
+// }
+//     if (line[position] == ((chairs*3) -1) {
+//       pthread_mutex_unlock(&locker)
+//       printf("Não atendo mais ninguém seus alunos peba\n");
+//     }
+//     pthread_mutex_unlock(&locker)
+//   }
+// }
 
-  while (1) {
-    // duvida se aqui ele tem que estar dormindo para dar um sem_wait
-    pthread_mutex_lock(&locker)
-
-    // if (fila = 0) {
-    //   pthread_mutex_unlock(&locker)
-    // }
-    printf("Estou atendendo o aluno %d\n", vetorId[posicao] ); // isso aqui é quando o vetor for criado com as threads, ai pra falar qual aluno foi atendido, usar aposica. n sei se faz sentido pra vc
-    //AI NESSE POST ELE LIBERA A POSIÇÃO ATUAL DA THREAD SENDO ATENDIDA, E TIRA ELA DA fila
-
-     // se puder ser um vetor, colocar a posição dessa thread,
-    // se tirar essa thread atendida da fila, modifica aquela variavel que conversamos que percorre a fila, mas n saquei muito se vai ser só uma variavel ou um array
-    pthread_mutex_unlock(&locker)
-    // o monitor tem que esperar um tempo aleatorio para acabar o atendimento, n sei se vai ser radom ou sleep
-
-    sem_post(&semAluno);
-    sleep(waiter); // posso fazer isso? senão defino um tempo mesmo
-  }
-}
-
+//////////////////////////////////Student Thread////////////////////
 void *student(void *id_aux){
-  int id =
-  int study_time = randomTime();
-  sleep()
-  while(){
+  //Inicializa ID e ajudas
+  int id = *((int *)id_aux) + 1;
+  int helps = 0, empty_chairs = 0, cont = 0;
 
+
+  while(helps < 3){
+    //Verifica cadeiras vazias na fila
+    pthread_mutex_lock(&locker);
+    sem_getvalue(&semStudent, &empty_chairs);
+
+    //Fluxo do Estudante na Fila
+    if(empty_chairs > 0){
+      //Verifica se o estudante pode esperar na fila
+      printf("Estudante %d está na Fila\n", id);
+      //Ocupa uma posição na fila pelo semáforo
+      sem_wait(&semStudent);
+      for(cont = 0; cont < students*3; cont++){
+        if(line[cont] == 0){
+          line[cont] = id;
+          break;
+        }
+      }
+      pthread_mutex_unlock(&locker);
+      while( (line[position] != id) && (busy != 1) ){
+        //Busy wait
+      }
+      printf("Estudante %d sendo atendido pelo Monitor pela %d ª vez\n", id, helps);
+      pthread_mutex_lock(&office);
+      helps++;
+      pthread_mutex_unlock(&office);
+    }
+
+    //Fluxo do Estudante em espera
+    else {
+      pthread_mutex_unlock(&locker);
+      sleep(randomTime());
+    }
   }
-}
 
+  printf("Estudante %d foi atendido todas as %d vezes e vai embora\n", id, helps);
+  pthread_exit(0);
+}
 
 int randomTime(){
   srand(time(NULL));
   int waiter = (rand() % 10) + 1;
   return waiter;
+}
+
+/////////////////////////////////Assistant Thread////////////////////
+void *assistant(void *param){
+
+  while( position < (students/2)*3 ) {
+
+    //Caso o monitor não tenha quem atender
+    if(line[position] == 0){
+      //Monitor inicia tirando um cochilo
+      printf("Monitor está dormindo\n");
+
+      while(line[position] == 0){
+        //Busy wait
+      }
+
+      //Monitor é acordado
+      printf("Monitor foi acordado pelo aluno %d\n", line[position]);
+    }
+
+    //Monitor inicia atendimento do alunos
+    pthread_mutex_lock(&office);
+    busy = 1;
+    printf("Monitor está atendendo o aluno %d\n", line[position]);
+    sleep(randomTime());
+    pthread_mutex_unlock(&office);
+
+    //Monitor barra o acesso para modificar o semáforo e o position
+    pthread_mutex_lock(&locker);
+    position++;
+    sem_post(&semStudent);
+    pthread_mutex_lock(&locker);
+
+  }
+
+  printf("Não atendo mais ninguém seus alunos peba\n");
+  pthread_exit(0);
 }
