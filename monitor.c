@@ -23,8 +23,8 @@ int main(int argc, char *argv[]){
 
   // Cria os estudantes
   srand(time(NULL));
-  //students = (rand() % 38) + 3; //- COMENTADO PARA TESTAGEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEM
-  students = 11;
+  //students = (rand() % 38) + 3; --------------------------------
+  students = 5;
   int chairs = students/2;
   int cont;
 
@@ -37,17 +37,10 @@ int main(int argc, char *argv[]){
   //Lista de IDs
   pthread_t assistant_id;
   pthread_t *id_list;
-  id_list = (pthread_t *) malloc(chairs*sizeof(pthread_t));
+  id_list = (pthread_t *) malloc(students*sizeof(pthread_t));
 
   //Alocar dinâmicamente o vetor
   line = (int *) calloc(students*3, sizeof(int));
-  printf("line[0] = %d\n", line[0]);
-  printf("line[1] = %d\n", line[1]);
-  printf("line[2] = %d\n", line[2]);
-  printf("line[3] = %d\n", line[3]);
-  printf("line[4] = %d\n", line[4]);
-  printf("line[5] = %d\n", line[5]);
-  printf("line[6] = %d\n", line[6]);
 
   // line[position] = 69;
   // printf("line[position] = %d\n", line[position]);
@@ -75,14 +68,6 @@ int main(int argc, char *argv[]){
   }
   pthread_join(assistant_id, NULL);
 
-  printf("line[0] = %d\n", line[0]);
-  printf("line[1] = %d\n", line[1]);
-  printf("line[2] = %d\n", line[2]);
-  printf("line[3] = %d\n", line[3]);
-  printf("line[4] = %d\n", line[4]);
-  printf("line[5] = %d\n", line[5]);
-  printf("line[6] = %d\n", line[6]);
-
   free(line);
   free(vec_students);
   return 0;
@@ -93,7 +78,7 @@ int main(int argc, char *argv[]){
 void *student(void *id_aux){
   //Inicializa ID e ajudas
   int id = *((int *)id_aux);
-  printf("[-- Inicio da thread de id %.2d --]\n", id);
+  printf("[Inicio da thread de id %.2d]\n", id);
   int helps = 0, cont = 0;
 
   while(helps < 3){
@@ -103,7 +88,10 @@ void *student(void *id_aux){
     //Fluxo do Estudante na Fila
     if(sem_trywait(&semStudent) == 0){
       //Verifica se o estudante pode esperar na fila
-      printf("[%.2d]Estudante está na Fila\n", id);
+      if(position > 0){
+        printf("[%.2d] Estudante está na Fila\n", id);
+      }
+      
       //Ocupa uma posição na fila pelo semáforo
       for(cont = 0; cont < students*3; cont++){
         if(line[cont] == 0){
@@ -148,32 +136,34 @@ void *assistant(void *param){
   while( position < students*3 ) {
 
     //Caso o monitor não tenha quem atender
-    if(line[position] == 0){
+    if(line[position] == 0 && position > 0){
       //Monitor inicia tirando um cochilo
-      printf("Monitor está dormindo\n");
+      printf("[Monitor] está dormindo\n");
 
       while(line[position] == 0){
         //Busy wait
       }
 
       //Monitor é acordado
-      printf("Monitor foi acordado pelo aluno %d, pos = %d\n", line[position], position);
+      printf("[Monitor] foi acordado pelo aluno %d\n", line[position]);
     }
+
 
     //Monitor inicia atendimento do alunos
     pthread_mutex_lock(&office);
-    printf("Monitor está atendendo o aluno %d, pos = %d\n", line[position], position);
+    printf("[Monitor] está atendendo o aluno %d\n", line[position]);
+    sem_post(&semStudent); //Libera o lugar do aluno atendido na fila
     busy = 1;
     sleep(randomTime());
-    printf("Monitor finalizou o atendimento do aluno %d, pos = %d\n", line[position], position);
-    sem_post(&semStudent);
+    printf("[Monitor] finalizou o atendimento do aluno %d\n", line[position]);
+
     pthread_mutex_unlock(&office);
 
     //Monitor barra o acesso para modificar o semáforo e o position
-    pthread_mutex_lock(&locker);
+  //  pthread_mutex_lock(&locker);
     position++;
     busy = 0;
-    pthread_mutex_unlock(&locker);
+  //  pthread_mutex_unlock(&locker);
 
   }
 
