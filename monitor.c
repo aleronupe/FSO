@@ -18,14 +18,14 @@ int students; //Quantidade de alunos no programa
 pthread_mutex_t locker; //mutex para barrar acesso a fila
 pthread_mutex_t office; //mutex para controlar acesso ao escritório
 pthread_mutex_t atendance;
+pthread_mutex_t room;
 sem_t sem_line; //semáforo para controlar acesso à fila
 
 int main(int argc, char *argv[]){
 
   // Cria os estudantes
   srand(time(NULL));
-  //students = (rand() % 38) + 3; --------------------------------
-  students = 7;
+  students = (rand() % 38) + 3;
   int chairs = students/2;
   int cont;
 
@@ -43,14 +43,11 @@ int main(int argc, char *argv[]){
   //Alocar dinâmicamente o vetor
   line = (int *) calloc(students*3, sizeof(int));
 
-  // line[position] = 69;
-  // printf("line[position] = %d\n", line[position]);
-  // printf("&line[position] = %d\n", &line[position]);
-
   //Inicializa Mutex e Semáforo
   pthread_mutex_init(&locker, NULL);
   pthread_mutex_init(&office, NULL);
   pthread_mutex_init(&atendance, NULL);
+  pthread_mutex_init(&room, NULL);
   sem_init(&sem_line, 0, chairs);
 
   //Cria o vetor de id de Threads
@@ -74,6 +71,16 @@ int main(int argc, char *argv[]){
   }
   pthread_join(assistant_id, NULL);
 
+  // printf("line[0] = %d\n", line[0]);
+  // printf("line[1] = %d\n", line[1]);
+  // printf("line[2] = %d\n", line[2]);
+  // printf("line[3] = %d\n", line[3]);
+  // printf("line[4] = %d\n", line[4]);
+  // printf("line[5] = %d\n", line[5]);
+  // printf("line[6] = %d\n", line[6]);
+  // printf("line[7] = %d\n", line[7]);
+
+
   free(line);
   free(vec_students);
   return 0;
@@ -94,14 +101,13 @@ void *student(void *id_aux){
     //Fluxo do Estudante na Fila
     if(sem_trywait(&sem_line) == 0){
       //Verifica se o estudante pode esperar na fila
-      if(position > 0){
-        printf("[%.2d] Estudante entrou na Fila\n", id);
-      }
-
       //Ocupa uma posição na fila pelo semáforo
       for(cont = 0; cont < students*3; cont++){
         if(line[cont] == 0){
           line[cont] = id;
+          if(cont > 0 && cont != position){
+            printf("[%.2d] Estudante entrou na Fila\n", id);
+          }
           break;
         }
       }
@@ -118,12 +124,14 @@ void *student(void *id_aux){
         pthread_mutex_unlock(&atendance);
       }
 
-      printf("[%.2d] Estudante sendo atendido pelo Monitor (%d)\n", id, helps+1);
+      pthread_mutex_lock(&room);
+    //  printf("[%.2d] Estudante sendo atendido pelo Monitor (%d)\n", id, helps+1);
 
       pthread_mutex_lock(&office); //Aluno fica parado aqui
-      printf("[%.2d] Estudante terminou  de ser atendido\n", id);
+    //  printf("[%.2d] Estudante terminou de ser atendido\n", id);
       helps++;
       pthread_mutex_unlock(&office);
+      pthread_mutex_unlock(&room);
     }
 
     //Fluxo do Estudante em espera
@@ -160,8 +168,6 @@ void *assistant(void *param){
       //Monitor é acordado
       printf("[Monitor] foi acordado pelo aluno %d\n", line[position]);
     }
-
-
 
     //Monitor inicia atendimento do alunos
     pthread_mutex_lock(&office);
