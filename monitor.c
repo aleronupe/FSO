@@ -25,7 +25,7 @@ int main(int argc, char *argv[]){
   // Cria os estudantes
   srand(time(NULL));
   //students = (rand() % 38) + 3; --------------------------------
-  students = 5;
+  students = 7;
   int chairs = students/2;
   int cont;
 
@@ -56,6 +56,9 @@ int main(int argc, char *argv[]){
   //Cria o vetor de id de Threads
   int *vec_students;
   vec_students = (int *) calloc(students, sizeof(int));
+
+  //Locka o atendance
+  pthread_mutex_lock(&atendance);
 
   //Inicializa threads
   for(cont = 0; cont < students; cont++){
@@ -92,7 +95,7 @@ void *student(void *id_aux){
     if(sem_trywait(&sem_line) == 0){
       //Verifica se o estudante pode esperar na fila
       if(position > 0){
-        printf("[%.2d] Estudante está na Fila\n", id);
+        printf("[%.2d] Estudante entrou na Fila\n", id);
       }
 
       //Ocupa uma posição na fila pelo semáforo
@@ -118,7 +121,7 @@ void *student(void *id_aux){
       printf("[%.2d] Estudante sendo atendido pelo Monitor (%d)\n", id, helps+1);
 
       pthread_mutex_lock(&office); //Aluno fica parado aqui
-      printf("[%.2d] Estudante terminou de ser atendido\n", id);
+      printf("[%.2d] Estudante terminou  de ser atendido\n", id);
       helps++;
       pthread_mutex_unlock(&office);
     }
@@ -138,7 +141,7 @@ void *student(void *id_aux){
 //////////////////////////////////////Retorno de número aleatório//////////////////
 int randomTime(){
   srand(time(NULL));
-  int waiter = (rand() % 3) + 5;
+  int waiter = (rand() % 3)+1;
   return waiter;
 }
 
@@ -154,10 +157,10 @@ void *assistant(void *param){
       while(line[position] == 0){
         //Busy wait
       }
-
       //Monitor é acordado
       printf("[Monitor] foi acordado pelo aluno %d\n", line[position]);
     }
+
 
 
     //Monitor inicia atendimento do alunos
@@ -169,7 +172,6 @@ void *assistant(void *param){
     sleep(randomTime());
     printf("[Monitor] finalizou o atendimento do aluno %d\n", line[position]);
     pthread_mutex_lock(&atendance);
-    busy = 0;
     position++;
     pthread_mutex_unlock(&office);
 
