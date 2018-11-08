@@ -39,26 +39,26 @@ int main(){
     fclose(fp);
   }
 
-
-
-  quadrado argumento;
+  quadrado argumento[10];
+  int numbers[10];
   for(cont = 0; cont < 10; cont++){
+    numbers[cont] = cont;
     int i, j,cont_list = 0;
-    pthread_create(&id_list[cont_list], NULL, vertical, &cont);
+    pthread_create(&id_list[cont_list], NULL, vertical, &numbers[cont]);
     // printf("Thread criada\n");
     cont_list++;
-    pthread_create(&id_list[cont_list], NULL, horizontal, &cont);
+    pthread_create(&id_list[cont_list], NULL, horizontal, &numbers[cont]);
     cont_list++;
     // printf("Thread criada\n");
 
 
-    argumento.numb = cont;
+    argumento[cont].numb = cont;
 
     for(i = 0; i <= 6; i += 3){
       for(j = 0; j <= 6; j += 3){
-        argumento.begin_line = i;
-        argumento.begin_column = j;
-        pthread_create(&id_list[cont_list], NULL, quadrado3x3, &argumento);
+        argumento[cont].begin_line = i;
+        argumento[cont].begin_column = j;
+        pthread_create(&id_list[cont_list], NULL, quadrado3x3, &argumento[cont]);
         // printf("Thread criada\n");
 
         cont_list++;
