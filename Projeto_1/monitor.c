@@ -54,8 +54,9 @@ int main(int argc, char *argv[]){
   int *vec_students;
   vec_students = (int *) calloc(students, sizeof(int));
 
-  //Locka o atendance
+  //Locka o atendance e o room
   pthread_mutex_lock(&atendance);
+  pthread_mutex_lock(&room);
 
   //Inicializa threads
   for(cont = 0; cont < students; cont++){
@@ -106,7 +107,9 @@ void *student(void *id_aux){
         if(line[cont] == 0){
           line[cont] = id;
           if(cont > 0 && cont != position){
+            pthread_mutex_lock(&room);
             printf("[%.2d] Estudante entrou na Fila\n", id);
+            pthread_mutex_unlock(&room);
           }
           break;
         }
@@ -124,14 +127,13 @@ void *student(void *id_aux){
         pthread_mutex_unlock(&atendance);
       }
 
-      pthread_mutex_lock(&room);
-    //  printf("[%.2d] Estudante sendo atendido pelo Monitor (%d)\n", id, helps+1);
+    printf("[%.2d] Estudante sendo atendido pelo Monitor (%d)\n", id, helps+1);
 
       pthread_mutex_lock(&office); //Aluno fica parado aqui
     //  printf("[%.2d] Estudante terminou de ser atendido\n", id);
       helps++;
       pthread_mutex_unlock(&office);
-      pthread_mutex_unlock(&room);
+
     }
 
     //Fluxo do Estudante em espera
@@ -161,17 +163,21 @@ void *assistant(void *param){
     if(line[position] == 0 && position > 0){
       //Monitor inicia tirando um cochilo
       printf("[Monitor] está dormindo\n");
-
+      pthread_mutex_lock(&room);
       while(line[position] == 0){
         //Busy wait
       }
       //Monitor é acordado
       printf("[Monitor] foi acordado pelo aluno %d\n", line[position]);
+      pthread_mutex_unlock(&room);
     }
 
     //Monitor inicia atendimento do alunos
     pthread_mutex_lock(&office);
     printf("[Monitor] está atendendo o aluno %d\n", line[position]);
+    if(position == 0){
+      pthread_mutex_unlock(&room);
+    }
     sem_post(&sem_line); //Libera o lugar do aluno atendido na fila
     pthread_mutex_unlock(&atendance);
     //Libera para o aluno entrar
@@ -181,10 +187,6 @@ void *assistant(void *param){
     position++;
     pthread_mutex_unlock(&office);
 
-    //Monitor barra o acesso para modificar o semáforo e o position
-  //  pthread_mutex_lock(&locker);
-
-  //  pthread_mutex_unlock(&locker);
 
   }
 
