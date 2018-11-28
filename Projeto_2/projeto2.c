@@ -65,7 +65,7 @@ int main(int argc, char *argv[]){
   }
 
   // Acesso a TP
-  int page_position = 0, frame_disp = 0, flag = 0, tlb_sucess = 0;
+  int page_position = 0, frame_disp = 0, flag = 0, tlb_sucess = 0, found = -1;
   for(int i = 0; i < number_of_addresses; i++) {
     flag = 0;
     // numero de pagina do numero (8 bits que indica o numero da pagina)
@@ -73,10 +73,9 @@ int main(int argc, char *argv[]){
     // deslocamento do numero (8 bits de deslocamento)
     frame_disp = (*(logical + i)).disp_numb;
 
-    int found = -1;
-
+    found = -1;
     for(int z = 0; z < 16; z++) {
-      if(table[z].page_numb == page_position) {
+      if((table[z].page_numb == page_position)) {
         // achou na tlb
         tlb_sucess++;
         found = z;
@@ -85,16 +84,18 @@ int main(int argc, char *argv[]){
       }
     }
     if(flag == 1) {
-      LRU(table, page_position, table[found].page_numb);
-      printf("O endereço lógico que está sendo traduzido: %d\n", (*(logical + i)).pure_numb);
+      printf("\nO número de página foi encontrado na TLB\n");
+      LRU(table, table[found].page_numb, table[found].frame_numb);
       printf("Número de Página: %d\n", page_position);
-      printf("O valor do frame: %d\n", (*(logical + i)).disp_numb);
+      printf("O endereço lógico que está sendo traduzido: %d\n", (*(logical + i)).pure_numb);
+      printf("O valor do offset: %d\n", (*(logical + i)).disp_numb);
       printf("Endereço na memória física: %d\n", table[found].frame_numb);
-      printf("Deslocamento na memória física: %d\n", (256*table[found].page_numb) + frame_disp); // valor do offset
-      printf("Valor encontrado na memória física: [%c]\n\n", RAM[table[found].page_numb][frame_disp]); // valor do byte
+      printf("Deslocamento na memória física: %d\n", (256 * table[found].frame_numb) + frame_disp); // valor do offset
+      printf("Valor encontrado na memória física: [%c]\n\n", RAM[table[found].frame_numb][frame_disp]); // valor do byte
     } else {
       // Tenta acessar pela tp, caso não tenha ele aumenta o page_faults e preenche pelo backing store na memoria ram e preenche a posição na TP
       if(TP[page_position] == -1) {
+        printf("\nO número do frame não existe na tabela de página\n");
         page_faults++;
         // Procura a primeira posição livre na RAM
         for(int j = 0; j < 256; j++){
@@ -108,17 +109,19 @@ int main(int argc, char *argv[]){
           }
         }
       }
+      printf("\nO número de página não foi encontrado na TLB, entrou para a TP\n");
       LRU(table, page_position, TP[page_position]);
-      printf("O endereço lógico que está sendo traduzido: %d\n", (*(logical + i)).pure_numb);
       printf("Número de Página: %d\n", page_position);
-      printf("O valor do frame: %d\n", (*(logical + i)).disp_numb);
+      printf("O endereço lógico que está sendo traduzido: %d\n", (*(logical + i)).pure_numb);
+      printf("O valor do offset: %d\n", (*(logical + i)).disp_numb);
       printf("Endereço na memória física: %d\n", TP[page_position]);
       printf("Deslocamento na memória física: %d\n", (256*TP[page_position]) + frame_disp); // valor do offset
       printf("Valor encontrado na memória física: [%c]\n\n", RAM[TP[page_position]][frame_disp]); // valor do byte
     }
   }
+  printf("\nO número de endereços: %d\n", number_of_addresses);
+  printf("O número de acessos pela TLB: %d\nA técnica de substituição de página utilizada foi LRU\n", tlb_sucess);
   printf("O número de erros de página: %d\n", page_faults);
-
   printf("Taxa de sucesso da TLB: %.2f%%\n", ((float)tlb_sucess/(float)number_of_addresses) * 100);
   printf("Taxa de erro: %.2f%%\n", ((float)page_faults/(float)number_of_addresses) * 100);
 
@@ -192,6 +195,7 @@ char *read_of_backing_store(int number_of_frame) {
     bs = fopen("BACKING_STORE.bin", "r");
     fseek(bs, 256 * number_of_frame, SEEK_SET);
     fread(frame, 256, 1, bs);
+    fclose(bs);
 
     // Imprime na tela os dados lidos
     // for(int cont = 0; cont < 256; cont++){
@@ -200,13 +204,14 @@ char *read_of_backing_store(int number_of_frame) {
 
     return frame;
 }
+
 //--------------------------------------------LRU-----------------------------------------------------//
 void LRU(TLB *table, int page_number, int frame_number) {
   int cont = 0, pos = -1, maior = -1, flag = 0;
   for(cont = 0; cont < 16; cont++){
 
     //Verifica se ainda existe espaço não preenchido na TLB
-    if( (*(table+cont)).page_numb == -1 ){
+    if((*(table+cont)).page_numb == -1 ){
       (*(table+cont)).frequence = 0;
       (*(table+cont)).page_numb = page_number;
       (*(table+cont)).frame_numb = frame_number;
@@ -214,7 +219,7 @@ void LRU(TLB *table, int page_number, int frame_number) {
       break;
     }
     //Caso em que o elemento já está na tabela
-    if((*(table+cont)).page_numb == page_number){
+    if( ((*(table+cont)).page_numb == page_number)){
       (*(table+cont)).frequence = -1;
       flag = 1;
     }
